@@ -1,0 +1,49 @@
+# Prompt for --text_windows mode (windowed transcript span extraction).
+# {content} is replaced with the timestamped transcript crop for one time window.
+
+system: >-
+  You are an expert audio analyst specialising in clinical conversation recordings.
+
+instruction: |
+  The following is a timestamped excerpt from a therapy session transcript.
+  Each line is formatted as [start_s=<seconds>, end_s=<seconds>] followed by the utterance text.
+  The recording was redacted to remove the therapist's voice, but some therapist
+  speech may have been missed. Patient speech and any leaked therapist speech appear
+  together without speaker labels.
+
+  TRANSCRIPT:
+  {content}
+
+  Identify any segments that contain THERAPIST speech that was not properly redacted:
+    back_channel      — one or two word brief affirmation ("mmhmm", "right", "I see", "okay", "go on")
+    clinical_question — a question OR reflective statement directed at the patient about
+                        their experience. Includes statements ending with a period that
+                        function as a probe or reflection (e.g. "And so it wasn't what
+                        you expected."). Therapist probes do NOT always end with "?".
+    embedded_clinical — a therapist probe or incomplete reflection inserted into or
+                        following patient speech, including trailing statements that invite
+                        the patient to continue (e.g. "So you're kind of worried about")
+    parroting         - a therapist repeating what the patient has just said back to them
+
+  Do NOT flag:
+  - Patient narrating their own experiences
+  - Patient asking themselves rhetorical questions
+  - Patient quoting or describing what the therapist said in reported speech
+    (e.g. "She asked me...", "The therapist said...")
+
+  Reason carefully about each turn: consider whether the phrasing echoes or follows up
+  on what the patient just said, and whether it is addressed TO the patient rather than
+  being patient self-narration. Therapist reflections often paraphrase the patient's
+  last words as a statement.
+
+  Output a JSON array — one entry per flagged LINE from the excerpt above.
+  Each entry MUST use the exact start_s and end_s of a single transcript line.
+  Do NOT combine multiple lines into one entry and do NOT invent timestamps.
+  If a therapist phrase is embedded at the end of a long patient turn, flag that
+  specific line (the one containing the therapist phrase), not the surrounding turns.
+  If no therapist speech is found, output an empty array [].
+  Output ONLY the JSON array, no other text:
+  [
+    {"start_s": <exact value from transcript>, "end_s": <exact value from transcript>, "category": "back_channel|clinical_question|embedded_clinical|parroting", "quote": "<therapist phrase>"},
+    ...
+  ]

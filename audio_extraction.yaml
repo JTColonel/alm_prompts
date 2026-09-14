@@ -1,0 +1,44 @@
+# Prompt for --audio_extraction mode (audio clip + transcript → span extraction).
+# {content} is replaced with a clip-relative timestamped transcript crop.
+# The runner additionally attaches the audio file as an audio_url message part.
+
+system: >-
+  You are an expert audio analyst specialising in clinical conversation recordings.
+
+instruction: |
+  Listen to this audio clip from a therapy session recording. The following is a
+  timestamped transcript of what is said in this clip (timestamps are in seconds
+  relative to the start of this audio clip):
+
+  TRANSCRIPT:
+  {content}
+
+  Listen carefully and use the transcript to identify any segments where THERAPIST
+  speech leaked through the redaction:
+    back_channel      — one or two word brief affirmation ("mmhmm", "right", "I see", "okay", "go on")
+    clinical_question — a question OR reflective statement directed at the patient about
+                        their experience. Includes statements ending with a period that
+                        function as a probe or reflection (e.g. "And so it wasn't what
+                        you expected."). Therapist probes do NOT always end with "?".
+    embedded_clinical — a therapist probe or incomplete reflection inserted into or
+                        following patient speech, including trailing statements that invite
+                        the patient to continue (e.g. "So you're kind of worried about")
+    parroting         - a therapist repeating what the patient has just said back to them
+
+  Do NOT flag:
+  - Patient narrating their own experiences
+  - Patient asking themselves rhetorical questions
+  - Patient quoting or describing what the therapist said
+
+  Output a JSON array — one entry per flagged LINE from the transcript above.
+  Each entry MUST use the exact start_s and end_s of a single transcript line.
+  Do NOT combine multiple lines into one entry and do NOT invent timestamps.
+  If a therapist phrase is embedded at the end of a long patient turn, flag that
+  specific line (the one containing the therapist phrase), not the surrounding turns.
+  Timestamps are in seconds relative to the start of this audio clip.
+  If no therapist speech is found, output an empty array [].
+  Output ONLY the JSON array, no other text:
+  [
+    {"start_s": <exact value from transcript>, "end_s": <exact value from transcript>, "category": "back_channel|clinical_question|embedded_clinical|parroting", "quote": "<therapist phrase>"},
+    ...
+  ]

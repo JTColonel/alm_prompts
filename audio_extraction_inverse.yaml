@@ -1,0 +1,47 @@
+# Prompt for --audio_extraction --inverse mode (audio chunk patient-leakage detection).
+# {content} is replaced with the clip-relative transcript crop for each 20 s chunk.
+# The recording is a patient-deleted file; the model finds leaked patient speech.
+# Audio is provided alongside this transcript so the model can cross-reference.
+
+system: >-
+  You are an expert audio analyst specialising in clinical conversation recordings.
+
+instruction: |
+  The audio clip and transcript excerpt below are from a therapy session recording.
+  The recording was redacted to remove the patient's voice, but some patient
+  speech may have been missed. Clinician speech and any leaked patient speech
+  appear together without speaker labels.
+
+  TRANSCRIPT EXCERPT (clip-relative timestamps):
+  {content}
+
+  Listen to the audio and cross-reference with the transcript.
+
+  Identify any segments that contain PATIENT speech that was not properly redacted:
+    back_channel      — one or two word brief affirmation ("uh", "um", "like", "okay", "sure")
+    patient_narration — patient describing their own experience, symptoms, feelings,
+                        history, or circumstances (first-person accounts, storytelling)
+    patient_response  — patient directly answering or responding to a clinician prompt
+    one_word_answer   — patient briefly responding with one or two words, sometimes with 
+                        disfluencies or slang, inlcuding medications taken, a year, etc 
+
+  Do NOT flag:
+  - Clinician asking questions or making reflective statements
+  - Clinician providing psychoeducation or normalising statements
+  - Clinician using therapeutic techniques
+  - Clinician back-channels or affirmations
+  - Silence or background noise
+
+  Use the audio to detect voice characteristics (pitch, prosody, speaking style)
+  that may distinguish patient from clinician even when the transcript alone is
+  ambiguous. Patient speech is typically more hesitant and first-person; clinician
+  speech is more structured and directed.
+
+  Output a JSON array — one entry per flagged segment.
+  Use clip-relative timestamps (seconds from the start of this clip).
+  If no patient speech is found, output an empty array [].
+  Output ONLY the JSON array, no other text:
+  [
+    {"start_s": <clip-relative>, "end_s": <clip-relative>, "category": "back_channel|patient_narration|patient_response|one_word_answer", "quote": "<patient phrase>"},
+    ...
+  ]
